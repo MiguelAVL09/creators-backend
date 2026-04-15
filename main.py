@@ -409,3 +409,82 @@ def update_post(
     db.refresh(post)
     
     return post
+
+# ==========================================
+# ENDPOINTS DE INTERACCIÓN (COMENTARIOS Y REACCIONES)
+# ==========================================
+
+# 1. Modelos temporales para recibir datos de React
+class CommentCreate(BaseModel):
+    content: str
+
+class ReactionCreate(BaseModel):
+    emoji: str
+
+# --- COMENTARIOS ---
+
+@app.post("/api/posts/{post_id}/comments")
+def create_comment(post_id: int, payload: CommentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """ Publica un nuevo comentario en un post """
+    new_comment = models.Comment(content=payload.content, post_id=post_id, user_id=current_user.id)
+    db.add(new_comment)
+    db.commit()
+    return {"message": "Comentario agregado con éxito"}
+
+@app.get("/api/posts/{post_id}/comments")
+def get_comments(post_id: int, db: Session = Depends(database.get_db)):
+    """ Devuelve todos los comentarios de un post junto con el nombre del autor """
+    comments = db.query(models.Comment).filter(models.Comment.post_id == post_id).all()
+    
+    resultado = []
+    for c in comments:
+        # Buscamos quién escribió el comentario para mostrar su nombre
+        autor = db.query(models.User).filter(models.User.id == c.user_id).first()
+        resultado.append({
+            "id": c.id,
+            "content": c.content,
+            "user_name": autor.full_name if autor else "Usuario Desconocido",
+            "user_id": c.user_id
+        })
+    return resultado
+
+# --- REACCIONES ---
+
+@app.post("/api/posts/{post_id}/react")
+def toggle_reaction(post_id: int, payload: ReactionCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """ Agrega o quita una reacción (Toggle) """
+    # Buscamos si el usuario ya reaccionó con ese mismo emoji
+    existing = db.query(models.Reaction).filter(
+        models.Reaction.post_id == post_id, 
+        models.Reaction.user_id == current_user.id, 
+        models.Reaction.emoji == payload.emoji
+    ).first()
+    
+    if existing:
+        # Si ya existía, se la quitamos (como quitar el Like)
+        db.delete(existing)
+        db.commit()
+        return {"message": "Reacción quitada", "added": False}
+    else:
+        # Si no existía, la agregamos
+        new_reaction = models.Reaction(emoji=payload.emoji, post_id=post_id, user_id=current_user.id)
+        db.add(new_reaction)
+        db.commit()
+        return {"message": "Reacción agregada", "added": True}
+
+@app.get("/api/posts/{post_id}/reactions")
+def get_reactions(post_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """ Devuelve el conteo de reacciones y si el usuario actual reaccionó """
+    reactions = db.query(models.Reaction).filter(models.Reaction.post_id == post_id).all()
+    
+    counts = {}
+    user_reacted = [] # Lista de emojis que el usuario actual ya presionó
+    
+    for r in reactions:
+        # Contamos cuántos de cada emoji hay
+        counts[r.emoji] = counts.get(r.emoji, 0) + 1
+        # Registramos si el usuario actual fue uno de los que presionó
+        if r.user_id == current_user.id:
+            user_reacted.append(r.emoji)
+            
+    return {"counts": counts, "user_reacted": user_reacted}
