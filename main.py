@@ -228,15 +228,25 @@ def get_all_hubs(db: Session = Depends(database.get_db)):
 
 @app.get("/api/hubs/{hub_id}/posts")
 def get_hub_posts(hub_id: int, db: Session = Depends(database.get_db)):
-    """ Devuelve los posts de una comunidad específica (React lo usa para contar) """
+    """ Devuelve los posts de una comunidad específica con su álbum completo """
     posts = db.query(models.Post).filter(models.Post.page_id == hub_id).all()
     
     resultado = []
     for p in posts:
+        # Buscamos todos los archivos multimedia asociados a este post
+        media_items = db.query(models.PostMedia).filter(models.PostMedia.post_id == p.id).all()
+        media_urls = [m.media_url for m in media_items]
+        
+        # Retrocompatibilidad: Si es un post viejo (Fase 1) usamos su link original
+        if not media_urls and getattr(p, "content_url", None):
+            media_urls = [p.content_url]
+
         resultado.append({
             "id": p.id,
             "title": p.title,
-            "content_url": getattr(p, "content_url", None)
+            "content_url": media_urls[0] if media_urls else None, # Se usa de miniatura
+            "media_urls": media_urls, # 🌟 TODAS las imágenes listas para el carrusel de React
+            "uploader_id": p.uploader_id
         })
     return resultado
 
@@ -265,31 +275,56 @@ def get_single_hub(hub_id: int, db: Session = Depends(database.get_db)):
 # ENDPOINTS DE POSTS - ACTUALIZADO PARA SUPABASE
 # ==========================================
 
-@app.post("/api/posts", response_model=schemas.PostOut)
+@app.post("/api/posts")
 async def create_post(
-    title: str = Form(...), page_id: int = Form(...), file: UploadFile = File(...),
-    db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)
+    title: str = Form(...), 
+    page_id: int = Form(...), 
+    files: List[UploadFile] = File(...), # 🌟 AHORA RECIBIMOS UNA LISTA DE ARCHIVOS
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "subadmin"]:
-        raise HTTPException(status_code=403, detail="Solo los administradores pueden publicar")
+        raise HTTPException(status_code=403, detail="Solo administradores pueden publicar")
 
-    # 🌟 SUBIDA A SUPABASE
-    ext = file.filename.split(".")[-1]
-    file_path_in_bucket = f"posts/post_{uuid.uuid4().hex}.{ext}"
-    
-    file_contents = await file.read()
-    supabase_client.storage.from_("creators_uploads").upload(file_path_in_bucket, file_contents)
-    
-    public_url = supabase_client.storage.from_("creators_uploads").get_public_url(file_path_in_bucket)
-    
+    # Limitador de seguridad
+    if len(files) > 100:
+        raise HTTPException(status_code=400, detail="El límite es de 100 archivos por publicación.")
+
+    # 1. Creamos el Post "Padre" primero para obtener su ID
     new_post = models.Post(
-        title=title, content_url=public_url, # Usamos la URL que nos da la nube
-        uploader_id=current_user.id, page_id=page_id
+        title=title, 
+        content_url="", # Lo llenaremos en el siguiente paso
+        uploader_id=current_user.id, 
+        page_id=page_id
     )
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
-    return new_post
+
+    first_url = ""
+
+    # 2. Subimos cada archivo a Supabase y lo guardamos en la tabla PostMedia
+    for i, file in enumerate(files):
+        ext = file.filename.split(".")[-1]
+        file_path_in_bucket = f"posts/post_{new_post.id}_{uuid.uuid4().hex}.{ext}"
+        
+        file_contents = await file.read()
+        supabase_client.storage.from_("creators_uploads").upload(file_path_in_bucket, file_contents)
+        public_url = supabase_client.storage.from_("creators_uploads").get_public_url(file_path_in_bucket)
+        
+        # Guardamos la primera imagen como "portada" del álbum
+        if i == 0:
+            first_url = public_url
+
+        # Relacionamos la imagen con el Post
+        new_media = models.PostMedia(media_url=public_url, post_id=new_post.id)
+        db.add(new_media)
+
+    # 3. Actualizamos la portada del post padre
+    new_post.content_url = first_url
+    db.commit()
+    
+    return {"message": "Aporte publicado con éxito", "post_id": new_post.id}
 
 
 # ==========================================
