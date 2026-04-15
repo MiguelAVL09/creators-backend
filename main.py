@@ -42,9 +42,14 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI()
 
 # Configuración de CORS
+origins = [
+    "http://localhost:5173",
+    "https://creators-frontend-lovat.vercel.app" # <-- ¡Pon tu URL real de Vercel aquí!
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
