@@ -205,6 +205,12 @@ async def upload_hub_banner(hub_id: int, file: UploadFile = File(...), db: Sessi
     db.refresh(hub)
     return hub
 
+@app.get("/api/hubs")
+def get_all_hubs(db: Session = Depends(database.get_db)):
+    """ Devuelve todas las comunidades creadas en la base de datos """
+    hubs = db.query(models.CreatorPage).all()
+    return hubs
+
 # ==========================================
 # ENDPOINTS DE POSTS - ACTUALIZADO PARA SUPABASE
 # ==========================================
