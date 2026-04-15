@@ -241,6 +241,27 @@ def get_hub_posts(hub_id: int, db: Session = Depends(database.get_db)):
     return resultado
 
 # ==========================================
+# ENDPOINT PARA VER UNA SOLA COMUNIDAD
+# ==========================================
+
+@app.get("/api/hubs/{hub_id}")
+def get_single_hub(hub_id: int, db: Session = Depends(database.get_db)):
+    """ Devuelve la información de una sola comunidad """
+    hub = db.query(models.CreatorPage).filter(models.CreatorPage.id == hub_id).first()
+    
+    if not hub:
+        raise HTTPException(status_code=404, detail="Comunidad no encontrada")
+    
+    # Empacamos los datos en JSON para React
+    return {
+        "id": hub.id,
+        "name": hub.name,
+        "description": hub.description,
+        "avatar_url": getattr(hub, "avatar_url", None),
+        "banner_url": getattr(hub, "banner_url", None)
+    }
+
+# ==========================================
 # ENDPOINTS DE POSTS - ACTUALIZADO PARA SUPABASE
 # ==========================================
 
