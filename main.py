@@ -138,6 +138,33 @@ def make_me_admin(email: str, db: Session = Depends(database.get_db)):
 # ENDPOINTS DE PÁGINAS (HUBS) - ACTUALIZADOS PARA SUPABASE
 # ==========================================
 
+# 🌟 ESTE ES EL ENDPOINT QUE TE FALTABA PARA EL ERROR 404
+class HubCreateTemp(BaseModel):
+    name: str
+    description: str
+
+@app.post("/api/hubs")
+def create_hub(
+    hub_data: HubCreateTemp, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    # Verificamos que tenga permisos
+    if current_user.role not in ["admin", "subadmin", "creator"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para crear comunidades")
+
+    # Creamos el registro en la base de datos
+    new_hub = models.CreatorPage(
+        name=hub_data.name,
+        description=hub_data.description
+    )
+    
+    db.add(new_hub)
+    db.commit()
+    db.refresh(new_hub)
+    
+    return new_hub
+
 @app.post("/api/hubs/{hub_id}/avatar")
 async def upload_hub_avatar(hub_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role not in ["admin", "subadmin"]: raise HTTPException(status_code=403, detail="Permiso denegado")
