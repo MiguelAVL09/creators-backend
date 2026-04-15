@@ -365,3 +365,47 @@ def toggle_ban_user(target_id: int, db: Session = Depends(database.get_db), curr
     user.is_banned = not user.is_banned
     db.commit()
     return {"message": "Estado de baneo actualizado", "is_banned": user.is_banned}
+
+# ==========================================
+# ENDPOINTS DE CONTROL DE POSTS (EDITAR / ELIMINAR)
+# ==========================================
+
+@app.delete("/api/posts/{post_id}")
+def delete_post(post_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """ Elimina un post (Solo Admins y Subadmins) """
+    if current_user.role not in ["admin", "subadmin"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para eliminar publicaciones")
+        
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post no encontrado")
+        
+    # Eliminamos el registro de la base de datos
+    db.delete(post)
+    db.commit()
+    
+    # Nota para la Fase 3: Aquí también deberíamos programar que la imagen se borre del Storage de Supabase para ahorrar espacio.
+    return {"message": "Publicación eliminada correctamente"}
+
+
+@app.put("/api/posts/{post_id}")
+def update_post(
+    post_id: int, 
+    title: str = Form(...), 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """ Edita el título de un post (Solo Admins y Subadmins) """
+    if current_user.role not in ["admin", "subadmin"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para editar publicaciones")
+        
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post no encontrado")
+        
+    # Actualizamos los datos
+    post.title = title
+    db.commit()
+    db.refresh(post)
+    
+    return post
