@@ -21,7 +21,7 @@ import models, schemas, auth_utils, database
 # ==========================================
 # 🌟 REEMPLAZA estas variables con tus datos reales de Supabase:
 SUPABASE_URL = "https://ezdpfgcychysiqehknrw.supabase.co" 
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHBmZ2N5Y2h5c2lxZWhrbnJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NzQwODcsImV4cCI6MjA5MTI1MDA4N30.Kk-nNwmB7lgUPo0yx1jI5LgicN1S1Yxg1DQr8kmb4pQ"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHBmZ2N5Y2h5c2lxZWhrbnJ3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTY3NDA4NywiZXhwIjoyMDkxMjUwMDg3fQ.XdxcWZxXCrIFgqbwzvUs7nIcSvJR5Xkb1WO9hIVWoOA"
 
 # Creamos el cliente que hablará con el disco duro de Supabase
 supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
