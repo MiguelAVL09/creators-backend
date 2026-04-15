@@ -73,3 +73,9 @@ class Reaction(Base):
     post_id = Column(Integer, ForeignKey("posts.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     uploader = relationship("User")
+
+class PostMedia(Base):
+    __tablename__ = "post_media"
+    id = Column(Integer, primary_key=True, index=True)
+    media_url = Column(String, nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"))
