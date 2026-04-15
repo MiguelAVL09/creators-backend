@@ -205,11 +205,40 @@ async def upload_hub_banner(hub_id: int, file: UploadFile = File(...), db: Sessi
     db.refresh(hub)
     return hub
 
+# ==========================================
+# ENDPOINTS DE LECTURA (GET) PARA REACT
+# ==========================================
+
 @app.get("/api/hubs")
 def get_all_hubs(db: Session = Depends(database.get_db)):
-    """ Devuelve todas las comunidades creadas en la base de datos """
+    """ Devuelve todas las comunidades en formato JSON perfecto para React """
     hubs = db.query(models.CreatorPage).all()
-    return hubs
+    
+    # Empacamos los datos a mano para que React los pueda leer sin errores
+    resultado = []
+    for h in hubs:
+        resultado.append({
+            "id": h.id,
+            "name": h.name,
+            "description": h.description,
+            "avatar_url": getattr(h, "avatar_url", None),
+            "banner_url": getattr(h, "banner_url", None)
+        })
+    return resultado
+
+@app.get("/api/hubs/{hub_id}/posts")
+def get_hub_posts(hub_id: int, db: Session = Depends(database.get_db)):
+    """ Devuelve los posts de una comunidad específica (React lo usa para contar) """
+    posts = db.query(models.Post).filter(models.Post.page_id == hub_id).all()
+    
+    resultado = []
+    for p in posts:
+        resultado.append({
+            "id": p.id,
+            "title": p.title,
+            "content_url": getattr(p, "content_url", None)
+        })
+    return resultado
 
 # ==========================================
 # ENDPOINTS DE POSTS - ACTUALIZADO PARA SUPABASE
