@@ -58,4 +58,18 @@ class Post(Base):
 
     # Relaciones bidireccionales para que SQLAlchemy navegue los datos fácilmente
     page = relationship("CreatorPage", back_populates="posts")
+
+class Comment(Base):
+    __tablename__ = "comments"
+    id = Column(Integer, primary_key=True, index=True)
+    content = Column(String, nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+class Reaction(Base):
+    __tablename__ = "reactions"
+    id = Column(Integer, primary_key=True, index=True)
+    emoji = Column(String, nullable=False) # Aquí guardaremos "❤️", "🔥", etc.
+    post_id = Column(Integer, ForeignKey("posts.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
     uploader = relationship("User")
